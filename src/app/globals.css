@@ -1,0 +1,265 @@
+@import "tailwindcss";
+
+/*
+ * Apple-style system (apple-design skill):
+ * iOS system colors + grouped backgrounds, system font with size-specific tracking,
+ * translucent materials, instant press feedback, reduced-motion / transparency / contrast support.
+ */
+:root {
+  /* Friendsgiving palette: warm paper, pumpkin, cranberry, harvest gold, sage, cocoa */
+  --bg: #f8f2ea;
+  --surface: #ffffff;
+  --fill: rgba(122, 84, 52, 0.1);
+  --ink: #2a1a10;
+  --muted: rgba(74, 48, 30, 0.62);
+  --faint: rgba(74, 48, 30, 0.32);
+  --line: rgba(110, 72, 44, 0.16);
+  --accent: #e2622b; /* pumpkin */
+  --accent-deep: #c4471c;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(226, 98, 43, 0.12);
+  --cranberry: #b5344a;
+  --gold: #df9f2f;
+  --sage: #6c8a55;
+  --cocoa: #7a5238;
+  --danger: #d0302b;
+  --ok: #4f8a3c;
+  --material: rgba(248, 242, 234, 0.74);
+  --material-edge: rgba(255, 255, 255, 0.55);
+  --shadow: 0 1px 2px rgba(90, 50, 20, 0.05), 0 10px 28px rgba(90, 50, 20, 0.08);
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1); /* Apple sheet curve */
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15100c;
+    --surface: #241a13;
+    --fill: rgba(240, 200, 160, 0.1);
+    --ink: #fbf1e6;
+    --muted: rgba(251, 241, 230, 0.6);
+    --faint: rgba(251, 241, 230, 0.3);
+    --line: rgba(251, 225, 200, 0.12);
+    --accent: #f27a3f;
+    --accent-deep: #e2622b;
+    --accent-ink: #1a0f08;
+    --accent-soft: rgba(242, 122, 63, 0.18);
+    --cranberry: #e0566c;
+    --gold: #f0b54a;
+    --sage: #8fb077;
+    --cocoa: #c39070;
+    --danger: #ff5a4f;
+    --ok: #7cc062;
+    --material: rgba(21, 16, 12, 0.72);
+    --material-edge: rgba(255, 255, 255, 0.07);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-fill: var(--fill);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-deep: var(--accent-deep);
+  --color-cranberry: var(--cranberry);
+  --color-gold: var(--gold);
+  --color-sage: var(--sage);
+  --color-cocoa: var(--cocoa);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Helvetica Neue', sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Helvetica Neue', sans-serif;
+}
+
+html {
+  font-size: 100%;
+}
+html,
+body {
+  overflow-x: clip;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem; /* 17px — iOS body */
+  line-height: 1.35;
+  letter-spacing: 0;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Type ramp: tracking tightens as size grows, loosens as it shrinks */
+.t-large {
+  font-family: var(--font-display);
+  font-size: 2.125rem; /* 34 */
+  line-height: 1.12;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+}
+.t-title {
+  font-family: var(--font-display);
+  font-size: 1.375rem; /* 22 */
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+}
+.t-headline {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.t-footnote {
+  font-size: 0.8125rem; /* 13 */
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+.t-caption {
+  font-size: 0.75rem; /* 12 */
+  letter-spacing: 0.01em;
+}
+.t-section {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--muted);
+  padding: 0 1rem 0.5rem;
+}
+
+/* Filled primary: pumpkin with a gentle top light */
+.btn-primary {
+  background: linear-gradient(180deg, var(--accent), var(--accent-deep));
+  color: var(--accent-ink);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22) inset;
+}
+.btn-primary:disabled {
+  background: var(--fill);
+  color: var(--faint);
+  box-shadow: none;
+}
+
+/* A single grouped surface without row separators */
+.card {
+  background: var(--surface);
+  border-radius: 0.75rem;
+}
+
+/* Inset grouped list (iOS Settings style) */
+.group {
+  background: var(--surface);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+.group > * + * {
+  box-shadow: inset 0 0.5px 0 var(--line);
+}
+.group-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.6875rem 1rem;
+}
+
+/* Press feedback: on pointer-down, instant */
+.press {
+  transition: transform 100ms ease-out, opacity 100ms ease-out, background-color 150ms ease-out;
+  touch-action: manipulation;
+}
+.press:active:not(:disabled) {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* Translucent material (nav bars, toasts, floating chrome) */
+.material {
+  background: var(--material);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Arrivals: rise + fade on the Apple sheet curve */
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.arrive {
+  animation: arrive 420ms var(--ease-out) both;
+}
+@keyframes materialize {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+.materialize {
+  animation: materialize 380ms var(--ease-out) both;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Fields draw their own focus ring */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrive,
+  .materialize {
+    animation: fade 200ms ease both;
+  }
+  .press:active:not(:disabled) {
+    transform: none;
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .material {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --line: rgba(74, 48, 30, 0.6);
+    --muted: rgba(74, 48, 30, 0.88);
+  }
+  .group {
+    box-shadow: 0 0 0 1px var(--line);
+  }
+}
