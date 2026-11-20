@@ -4,7 +4,7 @@ import { api, ApiError } from '@/client/api';
 import { CheckIcon, ChevronRightIcon, WarningIcon } from './Icons';
 
 export interface SyncSummary {
-  google: 'none' | 'ok' | 'expired';
+  google: 'none' | 'ok' | 'expired' | 'unavailable';
   playlistUrl: string | null;
   synced: number;
   waiting: number;
@@ -19,6 +19,8 @@ export function SyncStatus({ slug, sync, onChange }: { slug: string; sync: SyncS
   const [error, setError] = useState<string | null>(null);
   const connect = `/api/google/connect?slug=${encodeURIComponent(slug)}`;
   const notSynced = sync.waiting + sync.failed + sync.pendingDeletes;
+
+  if (sync.google === 'unavailable') return null; // this site has no Google login set up
 
   async function retry() {
     setBusy(true);
@@ -71,7 +73,7 @@ export function SyncStatus({ slug, sync, onChange }: { slug: string; sync: SyncS
           </>
         )}
       </div>
-      <p className={`t-footnote mt-1.5 px-4 ${error ? 'text-danger' : 'text-muted'}`} role={error ? 'alert' : undefined}>
+      <p className={`t-footnote mt-1.5 px-1 ${error ? 'text-danger' : 'text-muted'}`} role={error ? 'alert' : undefined}>
         {error ??
           (sync.google === 'none'
             ? 'Copies every song to a playlist on your account, so you can cast it from the YouTube app if the TV page fails'

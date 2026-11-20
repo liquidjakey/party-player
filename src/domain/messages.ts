@@ -23,6 +23,7 @@ export const ERRORS = {
   },
   NOT_LIVE: { status: 422, message: "This video isn't live right now" },
   PIN_LOCKED: { status: 429, message: 'Try again in 1 minute' },
+  TOO_MANY_PARTIES: { status: 429, message: 'Too many new parties from this connection. Try again in an hour' },
   QUOTA_EXCEEDED: { status: 429, message: 'YouTube checks are full for today. Try again tomorrow.' },
   YOUTUBE_UNAVAILABLE: { status: 503, message: 'YouTube is slow. Try again.' },
   INTERNAL: { status: 500, message: 'Something broke. Try again.' },

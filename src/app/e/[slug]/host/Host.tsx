@@ -9,8 +9,9 @@ import { api, ApiError } from '@/client/api';
 import { useEventLive } from '@/client/use-event-live';
 import { EndModeSelect } from '@/components/EndModeSelect';
 import { HostControls } from '@/components/HostControls';
-import { ChevronRightIcon, LinkIcon, MinusCircleIcon, PlusIcon, TvIcon } from '@/components/Icons';
-import { Avatar, setGuestOrder } from '@/components/Avatar';
+import { ChevronRightIcon, LinkIcon, TvIcon } from '@/components/Icons';
+import { setGuestOrder } from '@/components/Avatar';
+import { GuestListEditor } from '@/components/GuestListEditor';
 import { NavBar } from '@/components/NavBar';
 import { NowPlaying } from '@/components/NowPlaying';
 import { QueueList } from '@/components/QueueList';
@@ -135,6 +136,8 @@ export function Host({ params }: { params: Promise<{ slug: string }> }) {
           <HostControls slug={slug} isPlaying={live.player?.isPlaying ?? false} onError={(m) => say(m, 'error')} />
         </section>
 
+        <PartyName name={event.name} onSave={(name) => settings({ name }, 'Party name saved')} />
+
         <section>
           <h2 className="t-section">Share</h2>
           <div className="group">
@@ -172,11 +175,16 @@ export function Host({ params }: { params: Promise<{ slug: string }> }) {
 
         <SyncStatus slug={slug} sync={status.sync} onChange={loadStatus} />
 
-        <GuestEditor
-          guests={live.guests}
-          onAdd={(name) => settings({ guests: { add: [name] } }, `Added ${name}`)}
-          onRemove={(id, name) => settings({ guests: { remove: [id] } }, `Removed ${name}`)}
-        />
+        <section>
+          <h2 className="t-section">Guests · {live.guests.length}</h2>
+          <GuestListEditor
+            names={live.guests.map((g) => ({ key: g.id, name: g.name }))}
+            onAdd={(names) => settings({ guests: { add: names } }, names.length === 1 ? `Added ${names[0]}` : `Added ${names.length} guests`)}
+            onRemove={(id, name) => settings({ guests: { remove: [id] } }, `Removed ${name}`)}
+            canRemove={(id) => !live.tracks.some((t) => t.addedBy === id)}
+            removeNote="Guests who added songs can't be removed until their songs are gone"
+          />
+        </section>
 
         <section>
           <h2 className="t-section">All songs · {live.tracks.length}</h2>
@@ -250,55 +258,35 @@ function PinForm({ slug, name, onDone }: { slug: string; name: string; onDone: (
   );
 }
 
-function GuestEditor({
-  guests,
-  onAdd,
-  onRemove,
-}: {
-  guests: { id: string; name: string }[];
-  onAdd: (name: string) => void;
-  onRemove: (id: string, name: string) => void;
-}) {
-  const [name, setName] = useState('');
+function PartyName({ name, onSave }: { name: string; onSave: (name: string) => void }) {
+  const [value, setValue] = useState(name);
+  const [seen, setSeen] = useState(name);
+  if (name !== seen) {
+    setSeen(name);
+    setValue(name);
+  }
+  const changed = value.trim() && value.trim() !== name;
   return (
     <section>
-      <h2 className="t-section">Guests · {guests.length}</h2>
-      <ul className="group">
-        {guests.map((g) => (
-          <li key={g.id} className="group-row">
-            <button type="button" aria-label={`Remove ${g.name}`} onClick={() => onRemove(g.id, g.name)} className="press -ml-1 text-[1.375rem] text-danger">
-              <MinusCircleIcon />
-            </button>
-            <Avatar name={g.name} size={28} />
-            <span className="flex-1 truncate">{g.name}</span>
-          </li>
-        ))}
-        <li>
-          <form
-            className="group-row py-1.5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (name.trim()) {
-                onAdd(name.trim());
-                setName('');
-              }
-            }}
-          >
-            <PlusIcon className="-ml-0.5 flex-none text-[1.25rem] text-ok" />
-            <input
-              value={name}
-              maxLength={30}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Add Guest"
-              className="min-h-9 min-w-0 flex-1 bg-transparent outline-none placeholder:text-faint"
-            />
-            <button type="submit" disabled={!name.trim()} className="press font-semibold text-accent disabled:opacity-30">
-              Add
-            </button>
-          </form>
-        </li>
-      </ul>
-      <p className="t-footnote mt-1.5 px-4 text-muted">A name with songs can&apos;t be removed until its songs are gone</p>
+      <h2 className="t-section">Party name</h2>
+      <form
+        className="group-row group py-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (changed) onSave(value.trim());
+        }}
+      >
+        <input
+          value={value}
+          maxLength={60}
+          onChange={(e) => setValue(e.target.value)}
+          aria-label="Party name"
+          className="min-h-9 min-w-0 flex-1 bg-transparent outline-none"
+        />
+        <button type="submit" disabled={!changed} className="press font-semibold text-accent disabled:opacity-30">
+          Save
+        </button>
+      </form>
     </section>
   );
 }

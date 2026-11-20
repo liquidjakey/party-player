@@ -18,8 +18,8 @@ export async function GET(req: Request) {
   const code = url.searchParams.get('code');
   if (!code) return Response.redirect(`${back}?google=denied`, 302);
   try {
-    await saveFromCode(code);
     const event = await getEventBySlug(state.slug);
+    await saveFromCode(event.id, code);
     after(() => syncEvent(event.id));
     return Response.redirect(`${back}?google=ok`, 302);
   } catch (err) {

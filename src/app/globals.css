@@ -132,7 +132,7 @@ body {
   font-weight: 500;
   letter-spacing: 0;
   color: var(--muted);
-  padding: 0 1rem 0.5rem;
+  padding: 0 0.25rem 0.5rem; /* aligned with the card edge, not inset */
 }
 
 /* Filled primary: pumpkin with a gentle top light */

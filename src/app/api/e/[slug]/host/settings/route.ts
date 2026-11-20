@@ -8,6 +8,7 @@ import { resolveLiveFiller } from '@/server/services/live-service';
 import { getPlayerState, advance } from '@/server/services/player-service';
 
 const Body = z.object({
+  name: z.string().trim().min(1).max(60).optional(),
   endMode: z.enum(['loop', 'stop', 'live']).optional(),
   liveUrl: z.string().trim().max(500).optional(),
   clearLive: z.boolean().optional(),
@@ -28,6 +29,7 @@ export async function PATCH(req: Request, ctx: RouteContext<'/api/e/[slug]/host/
     const event = await requireHost(slug);
     const patch: Record<string, unknown> = {};
 
+    if (body.name) patch.name = body.name;
     if (body.region) patch.region = body.region;
     if (body.clearNotice) patch.notice = null;
     let liveTitle: string | null = null;

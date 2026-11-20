@@ -95,7 +95,7 @@ export function EndModeSelect({ event, onSaved }: { event: PartyEvent; onSaved: 
           </button>
         </form>
       </div>
-      <p className={`t-footnote mt-1.5 px-4 ${error ? 'text-danger' : 'text-muted'}`} role={error ? 'alert' : undefined}>
+      <p className={`t-footnote mt-1.5 px-1 ${error ? 'text-danger' : 'text-muted'}`} role={error ? 'alert' : undefined}>
         {error ?? 'A channel link keeps working when its stream restarts'}
       </p>
     </section>

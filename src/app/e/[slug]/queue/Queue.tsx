@@ -99,7 +99,7 @@ export function Queue({ params }: { params: Promise<{ slug: string }> }) {
           </h2>
           <QueueList tracks={upcoming} nameOf={nameOf} canRemove={(t) => t.addedBy === guest.id} onRemove={remove} />
           {current && current.addedBy === guest.id && (
-            <button type="button" onClick={() => remove(current)} className="press t-footnote mt-2 px-4 text-danger">
+            <button type="button" onClick={() => remove(current)} className="press t-footnote mt-2 px-1 text-danger">
               Remove the song playing now
             </button>
           )}

@@ -1,5 +1,6 @@
 // Design Ref: §5.4 Pick name — FR-02. Apple-style grouped list.
 'use client';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { use, useEffect } from 'react';
 import { useEventLive } from '@/client/use-event-live';
@@ -43,7 +44,10 @@ export function PickName({ params }: { params: Promise<{ slug: string }> }) {
           router.push(`/e/${slug}/queue`);
         }}
       />
-      <p className="t-footnote mt-2 px-4 text-muted">No password. Your phone remembers your name.</p>
+      <p className="t-footnote mt-2 px-1 text-muted">No password. Your phone remembers your name.</p>
+      <Link href={`/e/${slug}/host`} className="press t-footnote mt-10 block text-center text-muted underline underline-offset-4">
+        I&apos;m the host
+      </Link>
     </main>
   );
 }

@@ -3,17 +3,17 @@
 import 'server-only';
 import type { PartyEvent } from '@/domain/types';
 import { db, must, toEvent, toTrack } from '../adapters/db';
-import { accessToken, GoogleExpiredError, googleStatus, type GoogleStatus } from '../adapters/google-oauth';
+import { accessToken, GoogleExpiredError, googleConfigured, googleStatus, type GoogleStatus } from '../adapters/google-oauth';
 import { COST, quotaUsedToday, spendQuota } from '../adapters/quota';
 
 const API = 'https://www.googleapis.com/youtube/v3';
 
 class PlaylistGoneError extends Error {}
 
-async function yt(method: string, path: string, body?: unknown): Promise<Record<string, unknown>> {
+async function yt(eventId: string, method: string, path: string, body?: unknown): Promise<Record<string, unknown>> {
   const res = await fetch(`${API}/${path}`, {
     method,
-    headers: { authorization: `Bearer ${await accessToken()}`, 'content-type': 'application/json' },
+    headers: { authorization: `Bearer ${await accessToken(eventId)}`, 'content-type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(8000),
   });
@@ -33,7 +33,7 @@ async function yt(method: string, path: string, body?: unknown): Promise<Record<
 async function ensurePlaylist(event: PartyEvent): Promise<string | null> {
   if (event.ytPlaylistId) return event.ytPlaylistId;
   if (!(await spendQuota(COST.playlistInsert))) return null;
-  const created = await yt('POST', 'playlists?part=snippet,status', {
+  const created = await yt(event.id, 'POST', 'playlists?part=snippet,status', {
     snippet: { title: `Party: ${event.name}`, description: `Backup of the ${event.name} party playlist.` },
     status: { privacyStatus: 'unlisted' },
   });
@@ -45,7 +45,7 @@ async function ensurePlaylist(event: PartyEvent): Promise<string | null> {
 /** Copy every not-yet-synced song (in added order) and finish pending deletes. Safe to call often. */
 export async function syncEvent(eventId: string): Promise<void> {
   if (process.env.YOUTUBE_FAKE === '1') return;
-  if ((await googleStatus()) !== 'ok') return;
+  if (!googleConfigured() || (await googleStatus(eventId)) !== 'ok') return;
   const evRow = must(await db().from('events').select().eq('id', eventId).single());
   const event = toEvent(evRow);
   try {
@@ -55,7 +55,7 @@ export async function syncEvent(eventId: string): Promise<void> {
     const dels = must(await db().from('pending_deletes').select('yt_item_id').eq('event_id', eventId)) ?? [];
     for (const d of dels) {
       if (!(await spendQuota(COST.playlistDelete))) return;
-      await yt('DELETE', `playlistItems?id=${encodeURIComponent(d.yt_item_id)}`);
+      await yt(eventId, 'DELETE', `playlistItems?id=${encodeURIComponent(d.yt_item_id)}`);
       await db().from('pending_deletes').delete().eq('yt_item_id', d.yt_item_id);
     }
 
@@ -82,7 +82,7 @@ export async function syncEvent(eventId: string): Promise<void> {
         return;
       }
       try {
-        const item = await yt('POST', 'playlistItems?part=snippet', {
+        const item = await yt(eventId, 'POST', 'playlistItems?part=snippet', {
           snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId: track.videoId } },
         });
         await db().from('tracks').update({ yt_item_id: item.id as string, sync_status: 'synced' }).eq('id', track.id);
@@ -122,7 +122,7 @@ export interface SyncSummary {
 
 export async function syncSummary(eventId: string): Promise<SyncSummary> {
   const [google, ev, tracks, dels, quotaUsed] = await Promise.all([
-    googleStatus(),
+    googleConfigured() ? googleStatus(eventId) : Promise.resolve<GoogleStatus>('unavailable'),
     db().from('events').select('yt_playlist_id').eq('id', eventId).single(),
     db().from('tracks').select('sync_status').eq('event_id', eventId),
     db().from('pending_deletes').select('yt_item_id', { count: 'exact', head: true }).eq('event_id', eventId),

@@ -3,10 +3,10 @@ import 'server-only';
 import { AppError } from '@/domain/errors';
 import type { Guest, PartyEvent } from '@/domain/types';
 import { db, must, toEvent, toGuest } from '../adapters/db';
-import { hashPin, verifyAdminPin } from '../adapters/pin';
+import { checkCreateRate, hashPin, verifyAdminPin } from '../adapters/pin';
 
 export interface CreateEventInput {
-  adminPin: string;
+  adminPin?: string;
   name: string;
   slug: string;
   guests: string[];
@@ -15,7 +15,8 @@ export interface CreateEventInput {
 }
 
 export async function createEvent(input: CreateEventInput, ip: string): Promise<{ event: PartyEvent; guests: Guest[] }> {
-  await verifyAdminPin(ip, input.adminPin);
+  await verifyAdminPin(ip, input.adminPin ?? '');
+  await checkCreateRate(ip);
 
   const res = await db()
     .from('events')
