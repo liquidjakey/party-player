@@ -9,11 +9,11 @@ const toEvent = (r: any): PartyEvent => ({
   id: r.id, slug: r.slug, name: r.name, region: r.region, endMode: r.end_mode,
   liveVideoId: r.live_video_id, liveSource: r.live_source, ytPlaylistId: r.yt_playlist_id, notice: r.notice, createdAt: r.created_at,
 });
-const toGuest = (r: any): Guest => ({ id: r.id, eventId: r.event_id, name: r.name });
+const toGuest = (r: any): Guest => ({ id: r.id, eventId: r.event_id, name: r.name, color: r.color ?? null });
 const toTrack = (r: any): Track => ({
   id: r.id, eventId: r.event_id, videoId: r.video_id, title: r.title, channel: r.channel, thumbUrl: r.thumb_url,
   durationSec: r.duration_sec, addedBy: r.added_by, sourceUrl: r.source_url, addedAt: r.added_at,
-  firstPlayedAt: r.first_played_at, lastPlayedAt: r.last_played_at, status: r.status, ytItemId: r.yt_item_id,
+  firstPlayedAt: r.first_played_at, lastPlayedAt: r.last_played_at, position: r.position ?? null, status: r.status, ytItemId: r.yt_item_id,
   syncStatus: r.sync_status,
 });
 const toPlayer = (r: any): PlayerState => ({
@@ -44,21 +44,30 @@ export function useEventLive(slug: string): EventLive {
     const sb = supabaseBrowser();
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let eventId: string | null = null;
+
+    // A failed first load retries on its own (2 s, 4 s, 8 s … up to 30 s) instead of hanging on "Loading…".
+    let retryIn = 2000;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const failed = () => {
+      setState((s) => ({ ...s, status: s.event ? 'reconnecting' : 'error' }));
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(() => load().catch(failed), retryIn);
+      retryIn = Math.min(retryIn * 2, 30_000);
+    };
 
     async function load() {
       const ev = await sb.from('events').select().eq('slug', slug).maybeSingle();
       if (cancelled) return;
-      if (ev.error) return setState((s) => ({ ...s, status: s.event ? 'reconnecting' : 'error' }));
+      if (ev.error) return failed();
       if (!ev.data) return setState((s) => ({ ...s, status: 'not_found' }));
-      eventId = ev.data.id;
       const [g, t, p] = await Promise.all([
         sb.from('guests').select().eq('event_id', ev.data.id).order('name'),
         sb.from('tracks').select().eq('event_id', ev.data.id).order('added_at'),
         sb.from('player_state').select().eq('event_id', ev.data.id).maybeSingle(),
       ]);
       if (cancelled) return;
-      if (g.error || t.error || p.error) return setState((s) => ({ ...s, status: 'reconnecting' }));
+      if (g.error || t.error || p.error) return failed();
+      retryIn = 2000;
       setState((s) => ({
         status: s.status === 'reconnecting' && channelDown ? 'reconnecting' : 'live',
         event: toEvent(ev.data),
@@ -71,7 +80,7 @@ export function useEventLive(slug: string): EventLive {
 
     const soon = () => {
       clearTimeout(timer);
-      timer = setTimeout(load, 120);
+      timer = setTimeout(() => load().catch(failed), 120);
     };
     reload.current = soon;
 
@@ -103,15 +112,16 @@ export function useEventLive(slug: string): EventLive {
         });
     }
 
-    load();
+    load().catch(failed);
     // Safety net: refetch every 30 s in case a Realtime message was lost.
-    const poll = setInterval(() => eventId && load(), 30_000);
+    const poll = setInterval(() => load().catch(failed), 30_000);
     const onOnline = () => soon();
     window.addEventListener('online', onOnline);
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      clearTimeout(retryTimer);
       clearInterval(poll);
       window.removeEventListener('online', onOnline);
       if (channel) sb.removeChannel(channel);

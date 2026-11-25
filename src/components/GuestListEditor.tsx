@@ -1,11 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Avatar } from './Avatar';
 import { MinusCircleIcon, PlusIcon } from './Icons';
 
 /**
- * Add guests one at a time: type a name → Add (or Enter). Each name shows as a row with a remove button.
- * Pasting "Maya, Daniel, Priya" or one name per line adds them all at once.
+ * Add guests one at a time: type a name → Add (or Enter). Pasting "Maya, Daniel" or one name per line adds all.
+ * Removing is two steps (red minus → Remove), like the song list. The typed name is kept if adding fails.
  */
 export function GuestListEditor({
   names,
@@ -14,16 +14,21 @@ export function GuestListEditor({
   canRemove = () => true,
   removeNote,
 }: {
-  names: { key: string; name: string }[];
-  onAdd: (names: string[]) => void;
-  onRemove: (key: string, name: string) => void;
+  names: { key: string; name: string; color?: number | null }[];
+  onAdd: (names: string[]) => boolean | Promise<boolean>;
+  onRemove: (key: string, name: string) => boolean | Promise<boolean>;
   canRemove?: (key: string) => boolean;
   removeNote?: string;
 }) {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  function add(raw: string) {
+  async function add(raw: string) {
+    if (adding) return;
     const parts = raw
       .split(/[\n,]+/)
       .map((n) => n.trim().slice(0, 30))
@@ -36,26 +41,33 @@ export function GuestListEditor({
       return;
     }
     setError(null);
-    onAdd(fresh);
-    setText('');
+    setAdding(true);
+    const ok = await onAdd(fresh);
+    setAdding(false);
+    if (ok) {
+      setText('');
+      inputRef.current?.focus();
+    }
   }
 
   return (
     <div className="space-y-2">
       <div className="group">
-        <form
-          className="group-row py-1.5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            add(text);
-          }}
-        >
-          <PlusIcon className="flex-none text-[1.25rem] text-accent" />
+        {/* Not a <form>: on the New Party page this sits inside the party form */}
+        <div className="group-row tight">
+          <PlusIcon className="flex-none text-[1.25rem] text-accent-text" />
           <input
+            ref={inputRef}
             value={text}
             onChange={(e) => {
               setText(e.target.value);
               if (error) setError(null);
+            }}
+            onKeyDown={(e) => {
+              // isComposing: Enter that only finishes a Korean/Japanese letter must not add the name
+              if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+              e.preventDefault();
+              add(text);
             }}
             onPaste={(e) => {
               const pasted = e.clipboardData.getData('text');
@@ -68,28 +80,50 @@ export function GuestListEditor({
             placeholder="Type a guest's name"
             aria-label="Guest name"
             autoCapitalize="words"
+            enterKeyHint="done"
             className="min-h-9 min-w-0 flex-1 bg-transparent outline-none placeholder:text-faint"
           />
-          <button type="submit" disabled={!text.trim()} className="press font-semibold text-accent disabled:opacity-30">
-            Add
+          <button type="button" onClick={() => add(text)} disabled={!text.trim() || adding} className="press -mr-2 min-h-11 px-2 font-semibold text-accent-text disabled:opacity-30">
+            {adding ? 'Adding…' : 'Add'}
           </button>
-        </form>
-        {names.map((g) => (
-          <div key={g.key} className="group-row arrive">
-            <Avatar name={g.name} size={28} />
-            <span className="flex-1 truncate">{g.name}</span>
-            {canRemove(g.key) && (
-              <button
-                type="button"
-                aria-label={`Remove ${g.name}`}
-                onClick={() => onRemove(g.key, g.name)}
-                className="press text-[1.375rem] text-danger"
-              >
-                <MinusCircleIcon />
-              </button>
-            )}
-          </div>
-        ))}
+        </div>
+        {names.map((g) => {
+          const open = confirming === g.key;
+          const going = removing === g.key;
+          return (
+            <div key={g.key} className={`group-row arrive transition-opacity duration-200 ${going ? 'pointer-events-none opacity-40' : ''}`}>
+              {canRemove(g.key) ? (
+                <button
+                  type="button"
+                  aria-label={open ? 'Cancel' : `Remove ${g.name}`}
+                  aria-expanded={open}
+                  onClick={() => setConfirming(open ? null : g.key)}
+                  className={`press hit -ml-1 grid h-8 w-8 flex-none place-items-center text-[1.375rem] text-danger transition-transform duration-200 ${
+                    open ? 'rotate-90' : ''
+                  }`}
+                >
+                  <MinusCircleIcon />
+                </button>
+              ) : null}
+              <Avatar name={g.name} size={28} />
+              <span className="flex-1 truncate">{g.name}</span>
+              {open && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setConfirming(null);
+                    setRemoving(g.key);
+                    await onRemove(g.key, g.name);
+                    setRemoving(null);
+                  }}
+                  className="press materialize min-h-11 flex-none rounded-lg bg-danger px-3 text-[0.9375rem] font-semibold text-white"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
       <p className={`t-footnote px-1 ${error ? 'text-danger' : 'text-muted'}`} role={error ? 'alert' : undefined}>
         {error ??

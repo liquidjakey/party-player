@@ -28,7 +28,7 @@ export const toEvent = (r: any): PartyEvent => ({
   createdAt: r.created_at,
 });
 
-export const toGuest = (r: any): Guest => ({ id: r.id, eventId: r.event_id, name: r.name });
+export const toGuest = (r: any): Guest => ({ id: r.id, eventId: r.event_id, name: r.name, color: r.color ?? null });
 
 export const toTrack = (r: any): Track => ({
   id: r.id,
@@ -43,6 +43,7 @@ export const toTrack = (r: any): Track => ({
   addedAt: r.added_at,
   firstPlayedAt: r.first_played_at,
   lastPlayedAt: r.last_played_at,
+  position: r.position ?? null,
   status: r.status,
   ytItemId: r.yt_item_id,
   syncStatus: r.sync_status,

@@ -22,6 +22,7 @@ export interface Guest {
   id: string;
   eventId: string;
   name: string;
+  color: number | null; // 0–4, fixed when the guest is added (null on old rows)
 }
 
 export interface Track {
@@ -37,6 +38,7 @@ export interface Track {
   addedAt: string;
   firstPlayedAt: string | null; // null = never played (FR-06)
   lastPlayedAt: string | null; // used by Back
+  position: number | null; // host-set queue order; null = by added time
   status: TrackStatus;
   ytItemId: string | null;
   syncStatus: SyncStatus;

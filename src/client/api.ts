@@ -16,9 +16,12 @@ export async function api<T>(path: string, init?: { method?: string; body?: unkn
       method: init?.method ?? (init?.body ? 'POST' : 'GET'),
       headers: init?.body !== undefined ? { 'content-type': 'application/json' } : undefined,
       body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+      // Party Wi-Fi can stall without failing: give up after 12 s so buttons never stay stuck.
+      signal: AbortSignal.timeout(12_000),
     });
-  } catch {
-    throw new ApiError('NETWORK', 'No connection. Try again.');
+  } catch (e) {
+    const slow = e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError');
+    throw new ApiError('NETWORK', slow ? 'Taking too long. Check the Wi-Fi and try again' : 'No connection. Check the Wi-Fi and try again');
   }
   const json = (await res.json().catch(() => null)) as
     | { data: T }

@@ -40,7 +40,7 @@ export function SyncStatus({ slug, sync, onChange }: { slug: string; sync: SyncS
       <h2 className="t-section">YouTube backup</h2>
       <div className="group">
         {sync.google === 'none' && (
-          <a href={connect} className="group-row press text-accent">
+          <a href={connect} className="group-row press text-accent-text">
             <span className="flex-1">Connect YouTube</span>
             <ChevronRightIcon className="text-faint" />
           </a>
@@ -55,17 +55,17 @@ export function SyncStatus({ slug, sync, onChange }: { slug: string; sync: SyncS
         {sync.google === 'ok' && (
           <>
             <div className="group-row">
-              {notSynced === 0 ? <CheckIcon className="text-ok" /> : <WarningIcon className="text-accent" />}
+              {notSynced === 0 ? <CheckIcon className="text-ok" /> : <WarningIcon className="text-accent-text" />}
               <span className="flex-1">{notSynced === 0 ? 'All songs copied' : `${notSynced} not copied yet`}</span>
               <span className="text-muted">{sync.synced}</span>
             </div>
             {notSynced > 0 && (
-              <button type="button" disabled={busy} onClick={retry} className="group-row press w-full text-left text-accent disabled:opacity-50">
+              <button type="button" disabled={busy} onClick={retry} className="group-row press w-full text-left text-accent-text disabled:opacity-50">
                 {busy ? 'Copying…' : 'Retry'}
               </button>
             )}
             {sync.playlistUrl && (
-              <a href={sync.playlistUrl} target="_blank" rel="noreferrer" className="group-row press text-accent">
+              <a href={sync.playlistUrl} target="_blank" rel="noreferrer" className="group-row press text-accent-text">
                 <span className="flex-1">Open Playlist on YouTube</span>
                 <ChevronRightIcon className="text-faint" />
               </a>

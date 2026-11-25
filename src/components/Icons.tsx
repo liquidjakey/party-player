@@ -45,3 +45,22 @@ export const LiveIcon = (p: P) =>
   svg(<path d="M12 9.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM6.3 6.3a1 1 0 0 1 0 1.4 6 6 0 0 0 0 8.6 1 1 0 1 1-1.4 1.4 8 8 0 0 1 0-11.4 1 1 0 0 1 1.4 0Zm11.4 0a1 1 0 0 1 1.4 0 8 8 0 0 1 0 11.4 1 1 0 1 1-1.4-1.4 6 6 0 0 0 0-8.6 1 1 0 0 1 0-1.4Z" />, p);
 export const LeafIcon = (p: P) =>
   svg(<path d="M20.6 3.4a1 1 0 0 0-.9-.3C11.3 4.3 5.2 7.9 4.1 14.2c-.3 1.6-.1 3 .4 4.2l-1.8 1.8a1 1 0 1 0 1.4 1.4l1.8-1.8c1.2.6 2.6.8 4.2.5 6.3-1.1 9.9-7.2 11.1-15.6a1 1 0 0 0-.3-.9Zm-9.9 14.7c-1 .2-1.9.1-2.7-.2l5.3-5.3a1 1 0 0 0-1.4-1.4l-5.3 5.3c-.3-.8-.4-1.7-.2-2.7.9-4.9 5.5-8 12-9.3-1.3 6.5-4.4 11.1-9.3 12Z" />, p);
+/** Three lines: the iOS reorder handle */
+export const GripIcon = (p: P) =>
+  svg(
+    <>
+      <rect x="4" y="6.2" width="16" height="1.8" rx=".9" />
+      <rect x="4" y="11.1" width="16" height="1.8" rx=".9" />
+      <rect x="4" y="16" width="16" height="1.8" rx=".9" />
+    </>,
+    p,
+  );
+export const ShuffleIcon = (p: P) =>
+  svg(
+    <g fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7h3.2c1.6 0 3 .8 3.9 2.1l3.8 5.8c.9 1.3 2.3 2.1 3.9 2.1H21" />
+      <path d="M3 17h3.2c1.6 0 3-.8 3.9-2.1l.5-.7M13.4 9.8l.5-.7C14.8 7.8 16.2 7 17.8 7H21" />
+      <path d="m18.3 4.3 2.7 2.7-2.7 2.7M18.3 14.3 21 17l-2.7 2.7" />
+    </g>,
+    p,
+  );

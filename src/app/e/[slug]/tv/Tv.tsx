@@ -5,9 +5,11 @@ import { useSearchParams } from 'next/navigation';
 import { use, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { upcomingOrder } from '@/domain/queue-order';
 import { api, ApiError } from '@/client/api';
+import { useListMotion } from '@/client/use-list-motion';
 import { useEventLive } from '@/client/use-event-live';
 import { loadYouTubeApi, YT_STATE, type YTPlayer } from '@/client/youtube-player';
-import { HostControls } from '@/components/HostControls';
+import { Floaters } from '@/components/Floaters';
+import { HostControls, type ControlAction } from '@/components/HostControls';
 import { LeafIcon, LiveIcon } from '@/components/Icons';
 import { setGuestOrder, tvColorFor } from '@/components/Avatar';
 import { QrJoin } from '@/components/QrJoin';
@@ -53,11 +55,12 @@ function usePlayerId(): string {
 export function Tv({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const live = useEventLive(slug);
-  setGuestOrder(live.guests.map((g) => g.name));
+  setGuestOrder(live.guests);
   const playerId = usePlayerId();
   const scale = useStageScale();
   const [started, setStarted] = useState(false);
-  const [isHost, setIsHost] = useState(false);
+  const [cover, setCover] = useState(true); // the start screen; fades out after the press
+  const [controlError, setControlError] = useState<string | null>(null);
   const [ytError, setYtError] = useState<string | null>(null);
   const holder = useRef<HTMLDivElement>(null);
   const yt = useRef<YTPlayer | null>(null);
@@ -73,6 +76,8 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
   // Up Next: the whole queue as a compact list that fades out at the bottom (capped for TV performance).
   const upcoming = useMemo(() => upcomingOrder(tracks, player?.currentTrackId ?? null).filter((t) => t.status === 'ok'), [tracks, player?.currentTrackId]);
   const upNext = upcoming.slice(0, 24);
+  const shelf = useRef<HTMLOListElement>(null);
+  useListMotion(shelf, upNext.map((t) => t.id));
   // Background rotates on its own; ?bg=flow|sunrise|silk|wash|aurora|swirl pins one, ?hold=20&fade=10 speed it up to preview.
   const search = useSearchParams();
   const pinBg = search.get('bg');
@@ -101,13 +106,16 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
     post({ action: 'claim' });
   }, [post]);
 
-  // Host controls show only with a host cookie.
+  // Buttons on the TV: previous, play/pause, next, shuffle. Allowed because this screen is the active player.
+  const control = useCallback(
+    (command: ControlAction) => api(`/api/e/${slug}/player`, { body: { action: 'control', playerId, command } }),
+    [playerId, slug],
+  );
   useEffect(() => {
-    api(`/api/e/${slug}/host/status`).then(
-      () => setIsHost(true),
-      () => setIsHost(false),
-    );
-  }, [slug]);
+    if (!controlError) return;
+    const t = setTimeout(() => setControlError(null), 6000);
+    return () => clearTimeout(t);
+  }, [controlError]);
 
   // Keep the screen awake.
   useEffect(() => {
@@ -208,7 +216,8 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
   }, [started, isActive, player?.mode, player?.playSeq, hasPlayable, post]);
 
   function start() {
-    setStarted(true);
+    setStarted(true); // the video starts at once, under the fade
+    setTimeout(() => setCover(false), 500);
   }
 
   if (live.status === 'not_found') return <Full>Party not found.</Full>;
@@ -225,6 +234,8 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
       {/* A soft shade (dark backgrounds) or veil (light ones) only where text sits */}
       <div aria-hidden className={`absolute inset-0 transition-opacity duration-[1500ms] bg-[linear-gradient(180deg,transparent_45%,rgba(0,0,0,.4)),linear-gradient(90deg,transparent_62%,rgba(0,0,0,.22))] ${tone === 'dark' ? 'opacity-100' : 'opacity-0'}`} />
       <div aria-hidden className={`absolute inset-0 transition-opacity duration-[1500ms] bg-[linear-gradient(180deg,transparent_45%,rgba(255,250,244,.45)),linear-gradient(90deg,transparent_62%,rgba(255,250,244,.3))] ${tone === 'light' ? 'opacity-100' : 'opacity-0'}`} />
+
+      <Floaters variant="tv" />
 
       {/* The 1920×1080 slide, centered and scaled */}
       <div
@@ -255,7 +266,7 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
             <div className="mt-9 flex min-h-[112px] min-w-0 items-center justify-between gap-10">
               <div className="min-w-0 flex-1">
                 {player.mode === 'song' && current && (
-                  <div key={current.id} className="arrive min-w-0">
+                  <div key={current.id} className="arrive tv-halo min-w-0">
                     <p className="tv-display truncate text-[48px] text-[var(--ink)]">{current.title}</p>
                     <p className="mt-2 flex items-center gap-3 truncate text-[28px] text-[var(--ink-2)]">
                       Added by
@@ -266,15 +277,15 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
                   </div>
                 )}
                 {player.mode === 'live' && (
-                  <p className="arrive flex items-center gap-4 text-[40px] font-semibold text-[var(--ink)]">
+                  <p className="arrive tv-halo flex items-center gap-4 text-[40px] font-semibold text-[var(--ink)]">
                     <span className="grid h-14 w-14 place-items-center rounded-full bg-[#e0566c] text-[32px]"><LiveIcon /></span>
                     Live stream · add a song to take over
                   </p>
                 )}
               </div>
-              {isHost && started && (
+              {started && (
                 <div className="flex-none text-[var(--ink)]">
-                  <HostControls slug={slug} isPlaying={player.isPlaying} size="lg" />
+                  <HostControls send={control} isPlaying={player.isPlaying} size="lg" onError={setControlError} />
                 </div>
               )}
             </div>
@@ -282,8 +293,8 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
 
           {/* Up Next shelf */}
           <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden pt-4">
-            <p className="text-[24px] font-medium text-[var(--ink-3)]">{event.name}</p>
-            <h2 className="tv-display mt-2 flex items-baseline justify-between gap-4 text-[40px] text-[var(--ink)]">
+            <p className="tv-halo text-[24px] font-medium text-[var(--ink-3)]">{event.name}</p>
+            <h2 className="tv-display tv-halo mt-2 flex items-baseline justify-between gap-4 text-[40px] text-[var(--ink)]">
               Up Next
               {upcoming.length > 0 && (
                 <span className="whitespace-nowrap font-sans text-[20px] font-medium tracking-normal text-[var(--ink-3)] tabular-nums">
@@ -291,10 +302,10 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
                 </span>
               )}
             </h2>
-            <ol className="tv-fade mt-6 min-h-0 flex-1 space-y-2 overflow-hidden pb-6">
+            <ol ref={shelf} className="tv-fade relative isolate mt-6 min-h-0 flex-1 space-y-2 overflow-hidden pb-6">
               {upNext.length === 0 && <li className="text-[24px] text-[var(--ink-2)]">Nothing yet. Songs show here as guests add them</li>}
               {upNext.map((t) => (
-                <li key={t.id} className="tv-glass arrive flex min-w-0 items-center gap-3.5 rounded-[20px] p-2.5">
+                <li key={t.id} data-key={t.id} className="tv-row flex min-w-0 items-center gap-3.5 rounded-[20px] p-2.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={t.thumbUrl} alt="" className="h-[56px] w-[56px] flex-none rounded-[12px] object-cover" />
                   <div className="min-w-0">
@@ -320,11 +331,15 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
         {live.status === 'reconnecting' && (
           <p className="tv-glass absolute left-1/2 top-8 z-20 -translate-x-1/2 rounded-full px-6 py-2.5 text-[24px] text-[var(--ink)]">Reconnecting…</p>
         )}
+        {controlError && !ytError && <p role="alert" className="tv-glass absolute bottom-10 left-1/2 z-20 -translate-x-1/2 rounded-2xl px-7 py-3.5 text-[24px] text-[var(--ink)]">{controlError}</p>}
         {ytError && <p className="absolute bottom-10 left-1/2 z-20 -translate-x-1/2 rounded-2xl bg-[#d0302b] px-7 py-3.5 text-[24px] text-white">{ytError}</p>}
       </div>
 
-      {!started && (
-        <div className="absolute inset-0 z-30 grid place-items-center bg-black/55 backdrop-blur-2xl">
+      {cover && (
+        <div
+          inert={started}
+          className={`absolute inset-0 z-30 grid place-items-center bg-black/55 backdrop-blur-2xl transition-opacity duration-500 ease-[var(--ease-out)] motion-reduce:duration-200 ${started ? 'pointer-events-none opacity-0' : ''}`}
+        >
           <div
             className="materialize space-y-8 text-center"
             style={{ transform: `scale(${scale})`, transformOrigin: 'center' }}
@@ -364,10 +379,14 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
 
       <style>{`
         .tv-display { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; line-height: 1.08; }
-        .tv-ui[data-tone='dark'] { --ink: #ffffff; --ink-2: rgba(255,255,255,.68); --ink-3: rgba(255,255,255,.52); --glass: rgba(20,12,8,.26); --glass-line: rgba(255,255,255,.12); }
-        .tv-ui[data-tone='light'] { --ink: #2a1710; --ink-2: rgba(42,23,16,.72); --ink-3: rgba(42,23,16,.55); --glass: rgba(255,250,244,.45); --glass-line: rgba(255,255,255,.6); }
+        .tv-ui[data-tone='dark'] { --ink: #ffffff; --ink-2: rgba(255,255,255,.68); --ink-3: rgba(255,255,255,.52); --glass: rgba(20,12,8,.26); --glass-line: rgba(255,255,255,.12); --row: rgba(28,18,12,.66); --halo: rgba(20,12,8,.75); }
+        .tv-ui[data-tone='light'] { --ink: #2a1710; --ink-2: rgba(42,23,16,.72); --ink-3: rgba(42,23,16,.55); --glass: rgba(255,250,244,.45); --glass-line: rgba(255,255,255,.6); --row: rgba(255,250,244,.8); --halo: rgba(255,250,244,.95); }
         .tv-ui p, .tv-ui span, .tv-ui h2, .tv-ui li { transition: color 1.2s ease, background-color 1.2s ease; }
         .tv-glass { background: var(--glass); box-shadow: inset 0 0 0 1px var(--glass-line); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); transition: background-color 1.2s ease, box-shadow 1.2s ease; }
+        /* Up Next rows move, so no blur here (the background behind them is already smooth) */
+        .tv-row { background: var(--row); box-shadow: inset 0 0 0 1px var(--glass-line); }
+        /* Readable when a drifting drawing passes behind the text */
+        .tv-halo { text-shadow: 0 0 4px var(--halo), 0 0 14px var(--halo); }
         .tv-fade { -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent); mask-image: linear-gradient(180deg, #000 55%, transparent); }
       `}</style>
     </main>

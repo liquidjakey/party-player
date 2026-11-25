@@ -3,12 +3,13 @@ import 'server-only';
 import { AppError } from '@/domain/errors';
 import { duplicateMessage } from '@/domain/messages';
 import type { Track } from '@/domain/types';
+import { forwardTrack, reorderPatches, shuffleOrder, upcomingOrder } from '@/domain/queue-order';
 import { checkQueueable } from '@/domain/video-rules';
 import { isVideoId, parseYouTubeUrl } from '@/domain/youtube-url';
 import { db, must, toTrack } from '../adapters/db';
 import { youtube } from '../adapters/youtube-api';
 import { getEventBySlug, getGuest } from './event-service';
-import { advance, getPlayerState, wakeIfIdle } from './player-service';
+import { advance, getPlayerState, getTracks, wakeIfIdle } from './player-service';
 import { queueDelete } from './sync-service';
 
 export interface AddTrackInput {
@@ -73,8 +74,40 @@ export async function removeTrack(slug: string, trackId: string, guestId: string
   if (!host && (!guestId || track.addedBy !== guestId)) throw new AppError('NOT_OWNER');
 
   const state = await getPlayerState(event.id);
-  if (state.currentTrackId === track.id) await advance(event, track.id);
+  if (state.currentTrackId === track.id) {
+    // Removing the playing song would skip it. Skipping is for the TV and the host only
+    if (!host) throw new AppError('SONG_PLAYING');
+    await advance(event, track.id);
+  }
 
   await queueDelete(event.id, track.ytItemId);
   must(await db().from('tracks').delete().eq('id', track.id));
+}
+
+/** Host drags the queue into a new order. `orderedIds` = the upcoming songs, top to bottom. */
+export async function reorderQueue(eventId: string, orderedIds: string[]): Promise<void> {
+  const [tracks, player] = await Promise.all([getTracks(eventId), getPlayerState(eventId)]);
+  const patches = reorderPatches(tracks, player.currentTrackId, orderedIds);
+  const results = await Promise.all(
+    patches.map((p) =>
+      db()
+        .from('tracks')
+        .update({ position: p.position, ...(p.markUnplayed ? { first_played_at: null } : {}) })
+        .eq('id', p.id)
+        .eq('event_id', eventId),
+    ),
+  );
+  const failed = results.find((r) => r.error);
+  // 42703 / PGRST204 = the position column is missing: migration 0005 was not run yet
+  if (failed?.error && ['42703', 'PGRST204'].includes(failed.error.code)) throw new AppError('REORDER_NOT_SET_UP');
+  if (failed?.error) throw failed.error;
+  // After Previous, the songs stepped back over play first. A new order replaces that: make the current song the newest
+  if (forwardTrack(tracks, player.currentTrackId)) {
+    must(await db().from('tracks').update({ last_played_at: new Date().toISOString() }).eq('id', player.currentTrackId!));
+  }
+}
+
+export async function shuffleQueue(eventId: string): Promise<void> {
+  const [tracks, player] = await Promise.all([getTracks(eventId), getPlayerState(eventId)]);
+  await reorderQueue(eventId, shuffleOrder(upcomingOrder(tracks, player.currentTrackId)));
 }

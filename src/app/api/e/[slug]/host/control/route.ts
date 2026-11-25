@@ -2,22 +2,17 @@
 import { z } from 'zod';
 import { handle, ok, readJson } from '@/server/http';
 import { requireHost } from '@/server/require-host';
-import { advance, back, getPlayerState, setPlaying } from '@/server/services/player-service';
+import { control, CONTROL_ACTIONS } from '@/server/services/control-service';
+import { getPlayerState } from '@/server/services/player-service';
 
-const Body = z.object({ action: z.enum(['play', 'pause', 'skip', 'back']) });
+const Body = z.object({ action: z.enum(CONTROL_ACTIONS) });
 
 export async function POST(req: Request, ctx: RouteContext<'/api/e/[slug]/host/control'>) {
   return handle(async () => {
     const { slug } = await ctx.params;
     const { action } = Body.parse(await readJson(req));
     const event = await requireHost(slug);
-    if (action === 'play') {
-      const state = await getPlayerState(event.id);
-      if (state.mode === 'idle' || state.mode === 'stopped') await advance(event);
-      else await setPlaying(event.id, true);
-    } else if (action === 'pause') await setPlaying(event.id, false);
-    else if (action === 'skip') await advance(event);
-    else await back(event);
+    await control(event, action);
     return ok(await getPlayerState(event.id));
   });
 }

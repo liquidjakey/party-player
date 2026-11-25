@@ -6,7 +6,7 @@ import { ChevronRightIcon } from './Icons';
 /** FR-02 — an inset grouped list of names (iOS Settings style). Tap a row to pick. */
 export function NamePicker({ guests, onPick }: { guests: Guest[]; onPick: (g: Guest) => void }) {
   if (guests.length === 0) {
-    return <p className="px-4 text-center text-muted">No names yet. Ask the host to add you.</p>;
+    return <p className="card px-4 py-6 text-center text-muted">No names yet. Ask the host to add you</p>;
   }
   return (
     <ul className="group">

@@ -119,6 +119,26 @@ describe('player', () => {
     const stale = await call('POST', `${S}/player`, { action: 'position', playerId: 'tv-aaaaaaaa', positionSec: 5 });
     expect(stale.json.error?.code).toBe('NOT_ACTIVE_PLAYER');
   });
+  it('a guest cannot remove the song that is playing; the host can', async () => {
+    const st = (await call('POST', `${S}/player`, { action: 'claim', playerId: 'tv-aaaaaaaa' })).json.data;
+    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+    const { data: cur } = await sb.from('tracks').select('id, added_by').eq('id', st.currentTrackId).single();
+    const g = await call('DELETE', `${S}/tracks/${cur!.id}`, { guestId: cur!.added_by });
+    expect(g.json.error?.code).toBe('SONG_PLAYING');
+    const same = (await call('POST', `${S}/player`, { action: 'claim', playerId: 'tv-aaaaaaaa' })).json.data;
+    expect(same.currentTrackId).toBe(cur!.id);
+  });
+  it('TV buttons: next, previous, next again, pause, play; another screen is refused', async () => {
+    const tv = (command: string, playerId = 'tv-aaaaaaaa') => call('POST', `${S}/player`, { action: 'control', playerId, command });
+    const one = (await call('POST', `${S}/player`, { action: 'claim', playerId: 'tv-aaaaaaaa' })).json.data.currentTrackId;
+    const two = (await tv('skip')).json.data.currentTrackId;
+    expect(two).not.toBe(one);
+    expect((await tv('back')).json.data.currentTrackId).toBe(one);
+    expect((await tv('skip')).json.data.currentTrackId).toBe(two);
+    expect((await tv('pause')).json.data.isPlaying).toBe(false);
+    expect((await tv('play')).json.data.isPlaying).toBe(true);
+    expect((await tv('skip', 'tv-zzzzzzzz')).json.error?.code).toBe('NOT_ACTIVE_PLAYER');
+  });
   it('13 five wrong PINs → locked', async () => {
     let last = 0;
     for (let i = 0; i < 6; i++) last = (await call('POST', `${S}/host/login`, { pin: '0000' })).status;

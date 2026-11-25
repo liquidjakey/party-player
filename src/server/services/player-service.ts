@@ -1,6 +1,6 @@
 // Design Ref: §1.2 "Server decides, TV follows" + §4.3 — the only writer of player_state.
 import 'server-only';
-import { nextTrack, previousTrack } from '@/domain/queue-order';
+import { forwardTrack, nextTrack, previousTrack } from '@/domain/queue-order';
 import type { PartyEvent, PlayerState, Track } from '@/domain/types';
 import { db, must, toPlayer, toTrack } from '../adapters/db';
 import { refreshLiveFiller } from './live-service';
@@ -26,13 +26,13 @@ async function setState(eventId: string, patch: Record<string, unknown>, bump = 
   );
 }
 
-/** Make `track` the current song and mark it played. */
-export async function startTrack(eventId: string, track: Track): Promise<void> {
+/** Make `track` the current song and mark it played. `keepHistory` (Back, and Next after Back) leaves its play time as it was. */
+export async function startTrack(eventId: string, track: Track, keepHistory = false): Promise<void> {
   const now = new Date().toISOString();
   must(
     await db()
       .from('tracks')
-      .update({ first_played_at: track.firstPlayedAt ?? now, last_played_at: now })
+      .update({ first_played_at: track.firstPlayedAt ?? now, last_played_at: keepHistory ? (track.lastPlayedAt ?? now) : now })
       .eq('id', track.id),
   );
   await setState(eventId, { current_track_id: track.id, mode: 'song', is_playing: true, position_sec: 0 }, true);
@@ -45,6 +45,10 @@ export async function startTrack(eventId: string, track: Track): Promise<void> {
 export async function advance(event: PartyEvent, removingId?: string): Promise<void> {
   const state = await getPlayerState(event.id);
   const tracks = (await getTracks(event.id)).filter((t) => t.id !== removingId);
+  // Someone pressed Back: go forward through the same songs first
+  const forward = forwardTrack(tracks, state.currentTrackId);
+  if (forward) return startTrack(event.id, tracks.find((t) => t.id === forward)!, true);
+
   const next = nextTrack(tracks, state.currentTrackId, event.endMode, event.liveVideoId);
 
   if (next.mode === 'song') {
@@ -107,7 +111,7 @@ export async function back(event: PartyEvent): Promise<void> {
   const tracks = await getTracks(event.id);
   const prevId = previousTrack(tracks, state.currentTrackId);
   const prev = prevId ? tracks.find((t) => t.id === prevId) : undefined;
-  if (prev) await startTrack(event.id, prev);
+  if (prev) await startTrack(event.id, prev, true);
   else await advance(event);
 }
 

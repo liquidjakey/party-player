@@ -30,19 +30,41 @@ export async function createEvent(input: CreateEventInput, ip: string): Promise<
     must(await db().from('event_secrets').insert({ event_id: event.id, host_pin_hash: await hashPin(input.hostPin) }));
     must(await db().from('player_state').insert({ event_id: event.id }));
     const names = [...new Set(input.guests.map((g) => g.trim()).filter(Boolean))];
-    const rows = names.length
-      ? must(
-          await db()
-            .from('guests')
-            .insert(names.map((name) => ({ event_id: event.id, name })))
-            .select(),
-        )
-      : [];
-    return { event, guests: (rows ?? []).map(toGuest) };
+    return { event, guests: await insertGuests(event.id, names) };
   } catch (err) {
     await db().from('events').delete().eq('id', event.id); // cascade cleans the rest
     throw err;
   }
+}
+
+const COLORS = 5;
+
+/** Least-used colors first (ties → lowest), so a party's guests stay as distinct as possible. */
+export function pickColors(existing: (number | null)[], count: number): number[] {
+  const used = Array.from({ length: COLORS }, (_, c) => existing.filter((x) => x === c).length);
+  const out: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const c = used.indexOf(Math.min(...used));
+    used[c]++;
+    out.push(c);
+  }
+  return out;
+}
+
+/** Insert guests with fixed colors. Falls back to no color if migration 0004 hasn't run yet. */
+export async function insertGuests(eventId: string, names: string[]) {
+  if (names.length === 0) return [];
+  const existing = must(await db().from('guests').select('*').eq('event_id', eventId)) ?? [];
+  const colors = pickColors(existing.map((g: { color?: number | null }) => g.color ?? null), names.length);
+  const withColor = names.map((name, i) => ({ event_id: eventId, name, color: colors[i] }));
+  let res = await db().from('guests').upsert(withColor, { onConflict: 'event_id,name', ignoreDuplicates: true }).select();
+  if (res.error?.code === '42703' || res.error?.code === 'PGRST204') {
+    res = await db()
+      .from('guests')
+      .upsert(names.map((name) => ({ event_id: eventId, name })), { onConflict: 'event_id,name', ignoreDuplicates: true })
+      .select();
+  }
+  return (must(res) ?? []).map(toGuest);
 }
 
 export async function getEventBySlug(slug: string): Promise<PartyEvent> {

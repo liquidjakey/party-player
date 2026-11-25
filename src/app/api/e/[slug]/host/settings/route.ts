@@ -5,6 +5,7 @@ import { db, must } from '@/server/adapters/db';
 import { handle, ok, readJson } from '@/server/http';
 import { requireHost } from '@/server/require-host';
 import { resolveLiveFiller } from '@/server/services/live-service';
+import { insertGuests } from '@/server/services/event-service';
 import { getPlayerState, advance } from '@/server/services/player-service';
 
 const Body = z.object({
@@ -53,12 +54,7 @@ export async function PATCH(req: Request, ctx: RouteContext<'/api/e/[slug]/host/
     if (Object.keys(patch).length) must(await db().from('events').update(patch).eq('id', event.id));
 
     if (body.guests?.add?.length) {
-      const names = [...new Set(body.guests.add)];
-      must(
-        await db()
-          .from('guests')
-          .upsert(names.map((name) => ({ event_id: event.id, name })), { onConflict: 'event_id,name', ignoreDuplicates: true }),
-      );
+      await insertGuests(event.id, [...new Set(body.guests.add)]);
     }
     for (const guestId of body.guests?.remove ?? []) {
       const { count } = await db().from('tracks').select('id', { count: 'exact', head: true }).eq('added_by', guestId);

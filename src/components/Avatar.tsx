@@ -1,33 +1,25 @@
-// A guest's initial in one of the autumn colors. Same name → same color everywhere.
-const TINTS = [
-  'bg-accent text-white',
-  'bg-cranberry text-white',
-  'bg-gold text-[#3a2508]',
-  'bg-sage text-white',
-  'bg-cocoa text-white',
-];
+// A guest's initial in their own autumn color. Same guest → same color everywhere (badge, queue dot, TV).
+// Colors are saved per guest when they're added (guests.color); old rows fall back to A→Z order.
 
-/**
- * Signature: one color per guest, used only for that person.
- * Colors follow the party's guest list (A→Z), so the first five guests never share a color.
- * Pages call setGuestOrder() with the guest list; a hash is the fallback for unknown names.
- */
-let order = new Map<string, number>();
-export function setGuestOrder(names: string[]): void {
-  const sorted = [...names].sort((a, b) => a.localeCompare(b));
-  if (sorted.length === order.size && sorted.every((n, i) => order.get(n) === i)) return;
-  order = new Map(sorted.map((n, i) => [n, i]));
+export const TINT_COUNT = 5;
+
+let saved = new Map<string, number>();
+export function setGuestOrder(guests: { name: string; color?: number | null }[]): void {
+  const sorted = [...guests].sort((a, b) => a.name.localeCompare(b.name));
+  saved = new Map(sorted.map((g, i) => [g.name, g.color ?? i % TINT_COUNT]));
 }
+
 function indexFor(name: string): number {
-  const i = order.get(name);
-  if (i !== undefined) return i % TINTS.length;
+  const i = saved.get(name);
+  if (i !== undefined) return i % TINT_COUNT;
   let h = 0;
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return h % TINTS.length;
+  return h % TINT_COUNT;
 }
 
+/** CSS class with a background and a readable text color (see .tint-N in globals.css). */
 export function tintFor(name: string): string {
-  return TINTS[indexFor(name)];
+  return `tint-${indexFor(name)}`;
 }
 
 /** The same five colors, tuned to read on the dark TV page. */
@@ -37,11 +29,12 @@ export function tvColorFor(name: string): string {
 }
 
 export function Avatar({ name, size = 36 }: { name: string; size?: number }) {
+  const em = size / 16;
   return (
     <span
       aria-hidden
       className={`grid flex-none place-items-center rounded-full font-semibold ${tintFor(name)}`}
-      style={{ width: size, height: size, fontSize: size * 0.42 }}
+      style={{ width: `${em}rem`, height: `${em}rem`, fontSize: `${em * 0.42}rem` }}
     >
       {name.slice(0, 1).toUpperCase()}
     </span>

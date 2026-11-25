@@ -10,9 +10,9 @@ One shared YouTube queue for a party. Guests open a link on their phone, tap the
 |---|---|---|
 | `/` | Host | Create a party: name, guest list, host PIN |
 | `/e/{party}` | Guests | Pick your name (no account, no password) |
-| `/e/{party}/queue` | Guests | See what's playing, add YouTube links, remove your own songs |
-| `/e/{party}/tv` | The big screen | Plays the queue, shows Up Next and a QR code to join |
-| `/e/{party}/host` | Host (PIN) | Play/pause/skip/back, guests, party name, what happens after the last song |
+| `/e/{party}/queue` | Guests | See what's up next, add YouTube links, remove your own songs |
+| `/e/{party}/tv` | The big screen | Plays the queue, shows Up Next and a QR code to join. Previous, play/pause, next and shuffle buttons |
+| `/e/{party}/host` | Host (PIN) | Play/pause/next/previous/shuffle, remove and reorder songs, guests, party name, what happens after the last song |
 
 - **Checked links.** A song is only added if YouTube says the video exists, is public or unlisted, can be embedded, and isn't blocked in the party's country.
 - **Fair order.** Songs that have never played go first, so a song added late doesn't wait behind the whole loop.
@@ -26,7 +26,7 @@ YouTube Premium: log in to YouTube in the TV's browser and the embedded player p
 
 You need free accounts on **Supabase**, **Google Cloud** and **Vercel**.
 
-1. **Database.** Create a Supabase project. In *SQL Editor*, run the files in `supabase/migrations/` in order (`0001`, `0002`, `0003`).
+1. **Database.** Create a Supabase project. In *SQL Editor*, run the files in `supabase/migrations/` in order (`0001` to `0005`).
 2. **YouTube key.** In Google Cloud, enable *YouTube Data API v3* and create an API key (restrict it to that API).
 3. **Settings.** Copy `.env.example` to `.env.local` and fill it in:
 

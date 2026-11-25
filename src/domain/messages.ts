@@ -6,6 +6,7 @@ export const ERRORS = {
   UNAUTHORIZED: { status: 401, message: 'Host login needed' },
   WRONG_PIN: { status: 401, message: 'Wrong PIN' },
   NOT_OWNER: { status: 403, message: 'You can only remove your own songs' },
+  SONG_PLAYING: { status: 409, message: 'This song is playing now, so it can\'t be removed' },
   EVENT_NOT_FOUND: { status: 404, message: 'Party not found' },
   GUEST_NOT_FOUND: { status: 404, message: 'Pick your name again' },
   TRACK_NOT_FOUND: { status: 404, message: 'That song is already gone' },
@@ -26,6 +27,7 @@ export const ERRORS = {
   TOO_MANY_PARTIES: { status: 429, message: 'Too many new parties from this connection. Try again in an hour' },
   QUOTA_EXCEEDED: { status: 429, message: 'YouTube checks are full for today. Try again tomorrow.' },
   YOUTUBE_UNAVAILABLE: { status: 503, message: 'YouTube is slow. Try again.' },
+  REORDER_NOT_SET_UP: { status: 503, message: "Reordering isn't set up yet. Run the database update (migration 0005)" },
   INTERNAL: { status: 500, message: 'Something broke. Try again.' },
 } as const;
 
