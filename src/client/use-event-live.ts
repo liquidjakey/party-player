@@ -101,10 +101,10 @@ export function useEventLive(slug: string): EventLive {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `id=eq.${id}` }, soon)
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
-            const wasDown = channelDown;
             channelDown = false;
             setState((s) => (s.status === 'reconnecting' ? { ...s, status: 'live' } : s));
-            if (wasDown) soon(); // catch up on anything missed
+            // Catch up every time: a change made while the channel was joining (or down) sends no message
+            soon();
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
             channelDown = true;
             setState((s) => (s.event ? { ...s, status: 'reconnecting' } : s));

@@ -157,7 +157,7 @@ export default function AdminPage() {
                   style={{ width: `${Math.max(slug.length, 13)}ch` }}
                   value={slug}
                   required
-                  pattern="[a-z0-9-]{2,40}"
+                  pattern="[a-z0-9\-]{2,40}"
                   autoCapitalize="off"
                   placeholder="friendsgiving"
                   onChange={(e) => {

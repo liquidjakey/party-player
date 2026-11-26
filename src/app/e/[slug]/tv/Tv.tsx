@@ -90,10 +90,16 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
     report.current = { trackId: player?.mode === 'song' ? (player.currentTrackId ?? null) : null, playSeq: player?.playSeq ?? 0 };
   }, [player?.mode, player?.currentTrackId, player?.playSeq]);
 
+  // After the TV reports or a button is pressed, read the new state at once instead of waiting for a live message
+  const refresh = useRef(live.refresh);
+  useEffect(() => {
+    refresh.current = live.refresh;
+  });
   const post = useCallback(
     async (body: Record<string, unknown>) => {
       try {
         await api(`/api/e/${slug}/player`, { body: { playerId, ...body } });
+        refresh.current();
       } catch (e) {
         if (!(e instanceof ApiError) || e.code !== 'NOT_ACTIVE_PLAYER') console.warn('[tv]', e);
       }
@@ -108,7 +114,8 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
 
   // Buttons on the TV: previous, play/pause, next, shuffle. Allowed because this screen is the active player.
   const control = useCallback(
-    (command: ControlAction) => api(`/api/e/${slug}/player`, { body: { action: 'control', playerId, command } }),
+    (command: ControlAction) =>
+      api(`/api/e/${slug}/player`, { body: { action: 'control', playerId, command } }).then(() => refresh.current()),
     [playerId, slug],
   );
   useEffect(() => {
