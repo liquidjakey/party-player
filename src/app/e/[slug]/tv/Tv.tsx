@@ -379,14 +379,14 @@ export function Tv({ params }: { params: Promise<{ slug: string }> }) {
 
       <style>{`
         .tv-display { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; line-height: 1.08; }
-        .tv-ui[data-tone='dark'] { --ink: #ffffff; --ink-2: rgba(255,255,255,.68); --ink-3: rgba(255,255,255,.52); --glass: rgba(20,12,8,.26); --glass-line: rgba(255,255,255,.12); --row: rgba(28,18,12,.66); --halo: rgba(20,12,8,.75); }
-        .tv-ui[data-tone='light'] { --ink: #2a1710; --ink-2: rgba(42,23,16,.72); --ink-3: rgba(42,23,16,.55); --glass: rgba(255,250,244,.45); --glass-line: rgba(255,255,255,.6); --row: rgba(255,250,244,.8); --halo: rgba(255,250,244,.95); }
+        .tv-ui[data-tone='dark'] { --ink: #ffffff; --ink-2: rgba(255,255,255,.68); --ink-3: rgba(255,255,255,.52); --glass: rgba(20,12,8,.26); --glass-line: rgba(255,255,255,.12); --row: rgba(28,18,12,.66); --halo: 0 1px 2px rgba(0,0,0,.3); }
+        .tv-ui[data-tone='light'] { --ink: #2a1710; --ink-2: rgba(42,23,16,.72); --ink-3: rgba(42,23,16,.55); --glass: rgba(255,250,244,.45); --glass-line: rgba(255,255,255,.6); --row: rgba(255,250,244,.8); --halo: none; }
         .tv-ui p, .tv-ui span, .tv-ui h2, .tv-ui li { transition: color 1.2s ease, background-color 1.2s ease; }
         .tv-glass { background: var(--glass); box-shadow: inset 0 0 0 1px var(--glass-line); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); transition: background-color 1.2s ease, box-shadow 1.2s ease; }
         /* Up Next rows move, so no blur here (the background behind them is already smooth) */
         .tv-row { background: var(--row); box-shadow: inset 0 0 0 1px var(--glass-line); }
-        /* Readable when a drifting drawing passes behind the text */
-        .tv-halo { text-shadow: 0 0 4px var(--halo), 0 0 14px var(--halo); }
+        /* White text gets a faint drop shadow, like captions on photos; dark text needs none */
+        .tv-halo { text-shadow: var(--halo); }
         .tv-fade { -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent); mask-image: linear-gradient(180deg, #000 55%, transparent); }
       `}</style>
     </main>

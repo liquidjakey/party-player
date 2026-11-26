@@ -38,8 +38,10 @@ vec3 ramp(float x, vec3 c0, vec3 c1, vec3 c2, vec3 c3){ x = clamp(x, 0.0, 1.0);
   vec3 b = mix(a, c2, smoothstep(0.30, 0.68, x));
   return mix(b, c3, smoothstep(0.64, 1.0, x)); }
 
-vec3 scene(float mode, vec2 uv, vec2 p, float T, vec3 c0, vec3 c1, vec3 c2, vec3 c3){
+vec3 scene(float mode, vec2 uv, vec2 p, float T0, vec3 c0, vec3 c1, vec3 c2, vec3 c3){
   float asp = r.x / r.y;
+  // Each scene has its own pace, so all six feel about as alive as Cider Silk
+  float T = T0 * (mode < 0.5 ? 1.8 : mode > 4.5 ? 1.7 : mode > 3.5 ? 1.6 : 1.0);
   if (mode < 0.5) { // Harvest Flow: domain-warped paint
     vec2 sp = p*0.95;
     vec2 q = vec2(fbm(sp + vec2(0.0, T*0.05)), fbm(sp + vec2(5.2, 1.3) - T*0.045));
@@ -59,14 +61,18 @@ vec3 scene(float mode, vec2 uv, vec2 p, float T, vec3 c0, vec3 c1, vec3 c2, vec3
     }
     return sky + band * mix(c2, c3, smoothstep(0.3, 1.0, band)) * 0.95;
   }
-  if (mode < 2.5) { // First Light: a dawn sky whose bands roll and breathe, with drifting cloud
-    float wave = 0.16*(fbm(vec2(p.x*0.7 + T*0.07, T*0.05)) - 0.5) + 0.05*sin(T*0.13 + p.x*1.4);
-    float y = uv.y + wave + 0.07*sin(T*0.09);
+  if (mode < 2.5) { // First Light: a dusk sky whose bands roll like slow waves, with clouds streaming across
+    float roll = fbm(vec2(p.x*0.8 + T*0.15, T*0.1));
+    float wave = 0.26*(roll - 0.5) + 0.07*sin(T*0.28 + p.x*1.7) + 0.04*sin(T*0.19 - p.x*3.3);
+    float y = uv.y + wave + 0.05*sin(T*0.17);
     vec3 col = ramp(1.0 - smoothstep(0.0, 1.0, y), c0, c1, c2, c3);
-    float cloud = fbm(vec2(p.x*1.3 - T*0.08, p.y*3.2 + T*0.025));
-    col = mix(col, mix(c1, c2, 0.55), smoothstep(0.55, 0.82, cloud) * 0.3 * smoothstep(0.15, 0.75, uv.y));
-    vec2 sun = vec2((0.5 + 0.3*sin(T*0.045)) * asp, 0.1 + 0.06*sin(T*0.07));
-    col += c3 * exp(-dot(p - sun, p - sun) * 3.0) * 0.18;
+    // Cloud ribbons: stretched sideways, bent by a second noise, streaming to the left
+    vec2 cp = vec2(p.x*1.2 - T*0.16, p.y*3.4 + T*0.05);
+    float cloud = fbm(cp + 0.9*vec2(fbm(p*1.1 + vec2(T*0.09, 0.0)), fbm(p*1.1 + vec2(4.0, -T*0.07))));
+    float lit = smoothstep(0.5, 0.8, cloud) * smoothstep(0.1, 0.8, uv.y);
+    col = mix(col, mix(c1, c3, 0.35 + 0.4*(1.0 - uv.y)), lit * 0.42);
+    vec2 sun = vec2((0.5 + 0.32*sin(T*0.09)) * asp, 0.12 + 0.07*sin(T*0.13));
+    col += c3 * exp(-dot(p - sun, p - sun) * 2.6) * (0.2 + 0.06*sin(T*0.4));
     return col;
   }
   if (mode < 3.5) { // Cider Silk: glossy folds with sliding highlights
@@ -75,17 +81,14 @@ vec3 scene(float mode, vec2 uv, vec2 p, float T, vec3 c0, vec3 c1, vec3 c2, vec3
     vec3 col = ramp((0.5 + 0.5*sin(ph))*0.85, c0, c1, c2, c3);
     return mix(col, c3, pow(max(0.0, sin(ph + 0.35)), 18.0) * 0.55);
   }
-  if (mode < 4.5) { // Pumpkin Wash: a wavy horizon with three soft clouds drifting through
-    float edge = uv.y + 0.08*sin(p.x*1.6 + T*0.12) + 0.05*sin(p.x*3.1 - T*0.09);
-    vec3 col = mix(c0, c3, smoothstep(0.95, 0.05, edge));
-    float n = fbm(p*1.6 + T*0.035);
-    vec2 b1 = vec2((0.25 + 0.22*sin(T*0.09)) * asp, 0.35 + 0.2*cos(T*0.07));
-    vec2 b2 = vec2((0.75 + 0.2*cos(T*0.065)) * asp, 0.55 + 0.22*sin(T*0.085));
-    vec2 b3 = vec2((0.5 + 0.3*sin(T*0.05 + 2.0)) * asp, 0.2 + 0.15*cos(T*0.1 + 1.0));
-    col = mix(col, c2, 0.75*exp(-dot(p-b1, p-b1)*4.5) * (0.7 + 0.6*n));
-    col = mix(col, c1, 0.65*exp(-dot(p-b2, p-b2)*4.0) * (0.7 + 0.6*n));
-    col = mix(col, c2, 0.5*exp(-dot(p-b3, p-b3)*6.0) * (0.7 + 0.6*n));
-    return col;
+  if (mode < 4.5) { // Pumpkin Wash: warm paint flowing in slow ribbons, pumpkin at the top, cream at the bottom
+    vec2 sp = p*1.05 + vec2(T*0.02, 0.0);
+    vec2 q = vec2(fbm(sp + vec2(0.0, T*0.075)), fbm(sp + vec2(5.2, 1.3) - T*0.065));
+    vec2 w = vec2(fbm(sp + 1.9*q + vec2(1.7, 9.2) + T*0.055), fbm(sp + 1.9*q + vec2(8.3, 2.8) - T*0.05));
+    float f = fbm(sp + 2.1*w);
+    float swell = 0.06*sin(p.x*1.5 + T*0.16) + 0.04*sin(p.x*2.7 - T*0.12); // the whole wash rises and falls
+    float x = (1.0 - uv.y)*0.72 + swell + (f - 0.5)*0.95;
+    return ramp(smoothstep(0.02, 0.98, x), c0, c1, c2, c3);
   }
   // Sage Swirl: greens turning around a pale center
   vec2 d = p - vec2(0.5*asp, 0.5); float rad = length(d);
