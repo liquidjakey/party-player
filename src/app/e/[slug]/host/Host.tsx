@@ -103,6 +103,8 @@ export function Host({ params }: { params: Promise<{ slug: string }> }) {
   if (status === null) return <PinForm slug={slug} name={live.event.name} onDone={loadStatus} />;
 
   const event = live.event;
+  // Connected to YouTube: the saved playlist holds every song, so it replaces the 50-song quick links
+  const savedPlaylist = status.sync.google === "ok" ? status.sync.playlistUrl : null;
 
   async function settings(body: Record<string, unknown>, okMsg: string): Promise<boolean> {
     try {
@@ -204,8 +206,20 @@ export function Host({ params }: { params: Promise<{ slug: string }> }) {
               <span className="flex-1">Open TV Page</span>
               <ChevronRightIcon className="text-faint" />
             </Link>
-            {/* Backup: the whole queue as a YouTube playlist, built from the songs right now */}
-            {youtubeLinks.map((l) => (
+            {/* Backup: the saved playlist once YouTube is connected (no song limit), else quick links of 50 */}
+            {savedPlaylist && (
+              <a href={savedPlaylist} target="_blank" rel="noopener noreferrer" className="group-row press">
+                <span className="grid h-7 w-7 place-items-center rounded-md bg-cranberry text-[0.8125rem] text-white">
+                  <PlayIcon />
+                </span>
+                <span className="flex-1">
+                  Open your playlist
+                  <span className="text-muted tabular-nums"> · {status.sync.synced} {status.sync.synced === 1 ? 'song' : 'songs'} added</span>
+                </span>
+                <ChevronRightIcon className="text-faint" />
+              </a>
+            )}
+            {!savedPlaylist && youtubeLinks.map((l) => (
               <a key={l.from} href={l.url} target="_blank" rel="noopener noreferrer" className="group-row press">
                 <span className="grid h-7 w-7 place-items-center rounded-md bg-cranberry text-[0.8125rem] text-white">
                   <PlayIcon />
@@ -220,11 +234,18 @@ export function Host({ params }: { params: Promise<{ slug: string }> }) {
               </a>
             ))}
           </div>
-          {youtubeLinks.length > 0 && (
+          {savedPlaylist ? (
             <p className="t-footnote mt-1.5 px-1 text-muted">
-              Backup if the TV page fails: opens the songs in play order in the YouTube app. Cast it to the TV from there. Tap again later to include new songs
+              Backup if the TV page fails: your YouTube playlist, with every song. New songs are added by themselves. Cast it to the TV from the YouTube app
             </p>
-          )}
+          ) : youtubeLinks.length > 0 ? (
+            <p className="t-footnote mt-1.5 px-1 text-muted">
+              Backup if the TV page fails: opens the songs in play order in the YouTube app. Cast it to the TV from there.
+              {youtubeLinks.length > 1
+                ? ' YouTube opens at most 50 songs per link. Connect YouTube backup below to get every song in one playlist'
+                : ' Tap again later to include new songs'}
+            </p>
+          ) : null}
           {shareFallback && (
             <p className="t-footnote mt-1.5 px-1 text-muted">
               Copy this link: <span className="select-all font-medium text-ink">{shareFallback}</span>
