@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { upcomingOrder } from '@/domain/queue-order';
+import { youtubeQueueLinks } from '@/domain/youtube-url';
 import type { Track } from '@/domain/types';
 import { api, ApiError } from '@/client/api';
 import { shareLink } from '@/client/share';
@@ -13,7 +14,7 @@ import { setGuestOrder } from '@/components/Avatar';
 import { EndModeSelect } from '@/components/EndModeSelect';
 import { GuestListEditor } from '@/components/GuestListEditor';
 import { HostControls } from '@/components/HostControls';
-import { ChevronRightIcon, LinkIcon, TvIcon } from '@/components/Icons';
+import { ChevronRightIcon, LinkIcon, PlayIcon, TvIcon } from '@/components/Icons';
 import { NavBar } from '@/components/NavBar';
 import { NowPlaying } from '@/components/NowPlaying';
 import { QueueList } from '@/components/QueueList';
@@ -93,6 +94,7 @@ export function Host({ params }: { params: Promise<{ slug: string }> }) {
     return [...base].sort((a, b) => (rank.get(a.id) ?? 1e9) - (rank.get(b.id) ?? 1e9));
   }, [live.tracks, currentId, order]);
   const songs = useMemo(() => [...(current ? [current] : []), ...upcoming], [current, upcoming]);
+  const youtubeLinks = useMemo(() => youtubeQueueLinks(songs.filter((t) => t.status === 'ok').map((t) => t.videoId)), [songs]);
 
   const gate = liveGate(live.status, !!live.event, live.refresh);
   if (gate) return gate;
@@ -202,7 +204,27 @@ export function Host({ params }: { params: Promise<{ slug: string }> }) {
               <span className="flex-1">Open TV Page</span>
               <ChevronRightIcon className="text-faint" />
             </Link>
+            {/* Backup: the whole queue as a YouTube playlist, built from the songs right now */}
+            {youtubeLinks.map((l) => (
+              <a key={l.from} href={l.url} target="_blank" rel="noopener noreferrer" className="group-row press">
+                <span className="grid h-7 w-7 place-items-center rounded-md bg-cranberry text-[0.8125rem] text-white">
+                  <PlayIcon />
+                </span>
+                <span className="flex-1">
+                  Open in YouTube
+                  <span className="text-muted tabular-nums">
+                    {youtubeLinks.length > 1 ? ` · Songs ${l.from}–${l.to}` : ` · ${l.to} ${l.to === 1 ? 'song' : 'songs'}`}
+                  </span>
+                </span>
+                <ChevronRightIcon className="text-faint" />
+              </a>
+            ))}
           </div>
+          {youtubeLinks.length > 0 && (
+            <p className="t-footnote mt-1.5 px-1 text-muted">
+              Backup if the TV page fails: opens the songs in play order in the YouTube app. Cast it to the TV from there. Tap again later to include new songs
+            </p>
+          )}
           {shareFallback && (
             <p className="t-footnote mt-1.5 px-1 text-muted">
               Copy this link: <span className="select-all font-medium text-ink">{shareFallback}</span>

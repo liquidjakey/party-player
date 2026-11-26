@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseYouTubeUrl } from '@/domain/youtube-url';
+import { parseYouTubeUrl, youtubeQueueLinks } from '@/domain/youtube-url';
 
 const ID = 'dQw4w9WgXcQ';
 
@@ -50,4 +50,19 @@ describe('parseYouTubeChannelLive', () => {
     'rejects %s',
     (input) => expect(parseYouTubeChannelLive(input)).toBeNull(),
   );
+});
+
+describe('youtubeQueueLinks (open the party in YouTube)', () => {
+  const id = (n: number) => `song${String(n).padStart(7, '0')}`;
+  it('keeps the order, drops repeats and bad ids', () => {
+    const [l] = youtubeQueueLinks([id(2), id(1), id(2), 'bad']);
+    expect(l.url).toBe(`https://www.youtube.com/watch_videos?video_ids=${id(2)},${id(1)}`);
+    expect([l.from, l.to]).toEqual([1, 2]);
+  });
+  it('splits into links of 50', () => {
+    const links = youtubeQueueLinks(Array.from({ length: 120 }, (_, i) => id(i)));
+    expect(links.map((l) => [l.from, l.to])).toEqual([[1, 50], [51, 100], [101, 120]]);
+    expect(links[1].url.split('=')[1].split(',')).toHaveLength(50);
+  });
+  it('no songs, no links', () => expect(youtubeQueueLinks([])).toEqual([]));
 });

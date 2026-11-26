@@ -67,3 +67,20 @@ export function parseYouTubeChannelLive(input: string): string | null {
   }
   return null;
 }
+
+/** YouTube opens at most 50 songs from one link. */
+export const YOUTUBE_LINK_MAX = 50;
+
+/**
+ * Links that open these songs, in this order, as a temporary YouTube playlist (works in the YouTube app too,
+ * so it can be cast to a TV). More than 50 songs → one link per 50.
+ */
+export function youtubeQueueLinks(videoIds: string[]): { from: number; to: number; url: string }[] {
+  const ids = [...new Set(videoIds)].filter(isVideoId);
+  const out: { from: number; to: number; url: string }[] = [];
+  for (let i = 0; i < ids.length; i += YOUTUBE_LINK_MAX) {
+    const part = ids.slice(i, i + YOUTUBE_LINK_MAX);
+    out.push({ from: i + 1, to: i + part.length, url: `https://www.youtube.com/watch_videos?video_ids=${part.join(',')}` });
+  }
+  return out;
+}
